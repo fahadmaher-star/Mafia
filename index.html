@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>المافيا 🕵️</title>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:radial-gradient(ellipse at top,#1a1a2e 0%,#0f0f1a 60%,#0a0a12 100%);color:#fff;text-align:center;overflow-x:hidden;min-height:100vh;font-size:19px;line-height:1.5}
+.screen{display:none;padding:16px;padding-bottom:80px;min-height:100vh}
+.screen.active{display:block}
+h1{font-size:32px;margin:14px 0;font-weight:900}
+h2{font-size:25px} p{font-size:19px;margin:10px 0}
+button{padding:16px 22px;font-size:20px;border:none;border-radius:16px;background:linear-gradient(135deg,#ffcc00,#ff9500);color:#000;font-weight:900;margin:8px;cursor:pointer;width:90%;max-width:380px;box-shadow:0 6px 0 #b87700,0 10px 25px rgba(0,0,0,.4)}
+button:active{transform:translateY(4px);box-shadow:0 2px 0 #b87700}
+button.green{background:linear-gradient(135deg,#00e676,#00b248);color:#000;box-shadow:0 6px 0 #007a33,0 10px 25px rgba(0,0,0,.4)}
+button.blue{background:linear-gradient(135deg,#2979ff,#1565c0);color:#fff;box-shadow:0 6px 0 #0d47a1,0 10px 25px rgba(0,0,0,.4)}
+button.red{background:linear-gradient(135deg,#ff1744,#d50000);color:#fff;box-shadow:0 6px 0 #7a0000,0 10px 25px rgba(0,0,0,.4)}
+input{padding:15px;font-size:20px;border-radius:14px;border:2px solid #333;background:#fff;color:#000;width:90%;max-width:380px;text-align:center;margin:10px;font-weight:700}
+.card{background:linear-gradient(180deg,#262640,#1e1e30);padding:20px;border-radius:20px;margin:14px auto;max-width:430px;border:1px solid #3a3a55}
+.player{display:flex;justify-content:space-between;align-items:center;background:#2a2a40;padding:13px 15px;border-radius:12px;margin:6px 0;font-size:19px;font-weight:700}
+.player.out{opacity:.4;text-decoration:line-through}
+.ready{color:#00e676;font-weight:900} .notready{color:#ff5252}
+.code{font-size:32px;color:#ffcc00;font-weight:900;background:#000;padding:6px 16px;border-radius:12px;display:inline-block}
+#topInfo{position:fixed;top:0;left:0;right:0;z-index:9999;background:#ffcc00;color:#000;padding:12px 10px;font-size:20px;font-weight:900;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5);display:none;border-bottom:4px solid #ff1744}
+#topInfo.dead{background:#ff1744;color:#fff}
+#topInfo.saved{background:#00e676;color:#000}
+#topInfo.mafia{background:#7c4dff;color:#fff}
+#timerBar{position:fixed;top:0;left:0;height:6px;background:#00e676;z-index:10000;transition:width 1s linear;display:none}
+.mafia-card{width:190px;height:250px;background:#fff;color:#000;border-radius:18px;margin:15px auto;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;cursor:pointer;border:5px solid #ffcc00}
+.vote-item{background:#2a2a40;padding:18px;border-radius:16px;margin:11px auto;max-width:420px;cursor:pointer;border:2px solid #444;font-size:22px;font-weight:900}
+.vote-item.selected{border:4px solid #ffcc00;transform:scale(1.03);background:#00e676;color:#000}
+#s-result{background:#000 !important;min-height:100vh;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px}
+#s-result.active{display:flex}
+#blackCurtain{position:fixed;inset:0;background:#000;z-index:5;transition:transform 1.2s ease}
+#blackCurtain.open{transform:translateY(-100%)}
+#resultName{font-size:48px;font-weight:900;opacity:0;transform:scale(.5);transition:all 1s ease;text-align:center;line-height:1.4}
+#resultName.show{opacity:1;transform:scale(1)}
+#resultSub{font-size:24px;margin-top:10px;opacity:0;transition:opacity 1s}
+#resultSub.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="topInfo"></div>
+<div id="timerBar"></div>
+
+<div id="s-home" class="screen active"><h1>المافيا 🕵️</h1><div class="card"><button class="green" onclick="goToName('create')">إنشاء غرفة</button></div><div class="card"><input id="joinCode" placeholder="اكتب الكود هنا"><br><button class="blue" onclick="goToName('join')">دخول الغرفة</button></div></div>
+<div id="s-name" class="screen"><h1>اكتب اسمك</h1><div class="card"><input id="myName" placeholder="اسمك"><br><button class="green" id="enterBtn" onclick="confirmName()">دخول</button><p id="nameStatusMsg" style="color:#ffcc00"></p></div></div>
+<div id="s-lobby" class="screen"><h1>الغرفة</h1><p>كود الغرفة: <span id="roomCodeShow" class="code">---</span></p><p id="myRole"></p><div class="card"><div id="playersList"></div></div><button id="readyBtn" class="green" onclick="toggleReady()">أنا جاهز ✅</button><button id="startBtn" onclick="hostStartGame()" style="display:none;background:#ff1744;color:#fff">ابدأ اللعبة 🎮</button></div>
+
+<div id="s-mafia" class="screen" style="padding-top:70px">
+<h1>🕵️ المافيا</h1>
+<p>الراوند: <b id="roundNum">1</b> | <span id="phaseText" style="color:#ffcc00;font-weight:900"></span></p>
+<p>الوقت المتبقي: <b id="timeLeft" style="color:#ff1744;font-size:28px">30</b></p>
+<div class="card"><p>اضغط على الكرت</p><div id="myCard" class="mafia-card" onclick="flipCard()">؟</div><p id="myRoleText" style="font-weight:900"></p></div>
+<div class="card"><div id="gamePlayers"></div></div>
+<div id="actionArea"></div>
+</div>
+
+<div id="s-vote" class="screen" style="padding-top:70px"><h1>التصويت 🗳️</h1><p>تصويتك سري</p><p id="voteTitle" style="color:#ffcc00;font-size:22px;font-weight:900"></p><p>الوقت: <b id="voteTimeLeft" style="color:#ff1744;font-size:28px">30</b></p><div id="voteList"></div><p id="voteStatus"></p><div id="voteWait" style="display:none;color:#00e676">تم التصويت، انتظر...</div></div>
+
+<div id="s-result" class="screen">
+<div id="blackCurtain"></div>
+<div style="z-index:10;position:relative"><h1 style="color:#fff">النتيجة...</h1><div id="resultName"></div><div id="resultSub"></div><p id="resultWait" style="color:#aaa"></p></div>
+</div>
+
+<div id="s-final" class="screen" style="padding-top:70px"><h1>النهائي 🏆</h1><p>بقي شخصين فقط!</p><div class="card"><div id="finalPlayers"></div></div><p id="finalText" style="color:#ffcc00;font-size:24px;font-weight:900"></p><button class="green" onclick="requestNewGame()">لعبة جديدة 🔄</button></div>
+
+<script>
+let peer,isHost=false,myId="",myName="",roomCode="",myReady=false,players=[],conns=[],hostConn=null,pendingAction="",pendingCode="";
+let myRole="none",myRound=1,myPhase="waiting",aliveMap={},mafiaId="",victimId="",victimName="",saveVotes={},mafiaVotes={},hasVoted=false,currentRoles={},eliminatedIds=[];
+let lastVotedId="",lastVotedName="",lastWasMafia=false,phaseTimer=null,phaseEndTime=0,phaseDuration=0,cardFlipped=false;
+const TIME_KILL=30, TIME_SAVE=30, TIME_MAFIA_VOTE=40, TIME_RESULT=5;
+function isOut(id){ return eliminatedIds.includes(id); }
+function alivePlayers(){ return players.filter(p=>!isOut(p.id)); }
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+function setTopInfo(text, cls){
+  let el=document.getElementById('topInfo');
+  el.innerText=text; el.className=""; el.id="topInfo";
+  if(cls) el.classList.add(cls);
+  el.style.display='block';
+}
+function goToName(a){pendingAction=a;if(a==='join'){let c=document.getElementById('joinCode').value.trim().toUpperCase();if(!c){alert("اكتب الكود");return;}pendingCode=c;}document.getElementById('myName').value="";document.getElementById('nameStatusMsg').innerText="";show('s-name');setTimeout(()=>document.getElementById('myName').focus(),200);}
+function confirmName(){let n=document.getElementById('myName').value.trim();if(!n){alert("اكتب اسمك");return;}myName=n;if(pendingAction==='create')doCreate();else doJoin();}
+function makePeer(id){try{return new Peer(id,{host:'0.peerjs.com',port:443,path:'/',secure:true});}catch(e){return new Peer(id);}}
+function doCreate(){let b=document.getElementById('enterBtn');if(b){b.disabled=true;b.innerText="...";}document.getElementById('nameStatusMsg').innerText="...";roomCode=Math.random().toString(36).substring(2,7).toUpperCase();isHost=true;myId="p_"+Math.random().toString(36).substring(2,8);if(peer){try{peer.destroy();}catch(e){}}peer=makePeer("ROOM-"+roomCode);let done=false;let to=setTimeout(()=>{if(done)return;document.getElementById('nameStatusMsg').innerText="حاول مرة ثانية";if(b){b.disabled=false;b.innerText="دخول";}},8000);peer.on('open',()=>{done=true;clearTimeout(to);players=[{id:myId,name:myName,ready:false}];document.getElementById('roomCodeShow').innerText=roomCode;document.getElementById('myRole').innerText="منشئ الغرفة 👑";if(b){b.disabled=false;b.innerText="دخول";}show('s-lobby');renderPlayers();});peer.on('connection',c=>{conns.push(c);c.on('open',()=>{c.on('data',d=>handleHostData(c,d));c.send({type:'players',players});});});peer.on('error',e=>{if(e&&e.type==='unavailable-id'){roomCode=Math.random().toString(36).substring(2,7).toUpperCase();try{peer.destroy();}catch(e){}peer=makePeer("ROOM-"+roomCode);peer.on('open',()=>{done=true;clearTimeout(to);players=[{id:myId,name:myName,ready:false}];document.getElementById('roomCodeShow').innerText=roomCode;if(b){b.disabled=false;b.innerText="دخول";}show('s-lobby');renderPlayers();});peer.on('connection',c=>{conns.push(c);c.on('open',()=>{c.on('data',d=>handleHostData(c,d));c.send({type:'players',players});});});return;}document.getElementById('nameStatusMsg').innerText="خطأ - حاول مرة ثانية";if(b){b.disabled=false;b.innerText="دخول";}});}
+function doJoin(){let b=document.getElementById('enterBtn');if(b){b.disabled=true;b.innerText="...";}document.getElementById('nameStatusMsg').innerText="...";roomCode=pendingCode;myId="p_"+Math.random().toString(36).substring(2,8);if(peer){try{peer.destroy();}catch(e){}}peer=makePeer();let done=false;let to=setTimeout(()=>{if(done)return;document.getElementById('nameStatusMsg').innerText="حاول مرة ثانية";if(b){b.disabled=false;b.innerText="دخول";}},8000);peer.on('open',()=>{hostConn=peer.connect("ROOM-"+roomCode,{reliable:true});hostConn.on('open',()=>{done=true;clearTimeout(to);hostConn.send({type:'join',id:myId,name:myName});if(b){b.disabled=false;b.innerText="دخول";}});hostConn.on('data',d=>handleClientData(d));});peer.on('error',e=>{if(e&&e.type==='peer-unavailable'){clearTimeout(to);document.getElementById('nameStatusMsg').innerText="الغرفة مو موجودة";if(b){b.disabled=false;b.innerText="دخول";}}});}
+function broadcast(m){conns.forEach(c=>{if(c.open)c.send(m);});}
+function sendToHost(m){if(hostConn)hostConn.send(m);}
+function renderPlayers(){document.getElementById('playersList').innerHTML=players.map(p=>`<div class="player"><span>${p.name} ${p.id===myId?'(انت)':''}</span><span class="${p.ready?'ready':'notready'}">${p.ready?'✅ جاهز':'⏳ بانتظار'}</span></div>`).join('');let all=players.length>=1&&players.every(p=>p.ready);if(isHost&&all&&players.length>=3)document.getElementById('startBtn').style.display='block';else if(isHost)document.getElementById('startBtn').style.display='none';if(!isHost&&!document.getElementById('s-lobby').classList.contains('active')){document.getElementById('roomCodeShow').innerText=roomCode;show('s-lobby');}}
+function toggleReady(){myReady=!myReady;document.getElementById('readyBtn').innerText=myReady?"إلغاء الجاهزية ❌":"أنا جاهز ✅";if(isHost){let p=players.find(x=>x.id===myId);if(p)p.ready=myReady;broadcast({type:'players',players});renderPlayers();}else hostConn.send({type:'ready',id:myId,ready:myReady});}
+function hostStartGame(){ if(isHost) doGameStartByNetworkHost(); else sendToHost({type:'gameStartRequest'}); }
+function doGameStartByNetworkHost(){
+  let m = players[Math.floor(Math.random()*players.length)];
+  mafiaId=m.id; currentRoles={}; players.forEach(p=>{ currentRoles[p.id]=(p.id===mafiaId?'mafia':'citizen'); });
+  eliminatedIds=[]; aliveMap={}; players.forEach(p=>{ aliveMap[p.id]=true; });
+  myRound=1; myPhase='mafia_kill'; cardFlipped=false;
+  setTopInfo("🕵️ بدأت اللعبة!", "mafia");
+  let end = Date.now()+TIME_KILL*1000;
+  broadcast({type:'mafiaStart', roles:currentRoles, mafiaId, round:1, phase:'mafia_kill', alive:aliveMap, eliminated:[], endTime:end, duration:TIME_KILL});
+  startMafiaScreen(currentRoles[myId],1,'mafia_kill',aliveMap,end,TIME_KILL);
+  startPhaseTimer(end, TIME_KILL, 'mafia_kill');
+}
+function startPhaseTimer(end, duration, phase){
+  if(phaseTimer) clearInterval(phaseTimer);
+  phaseEndTime=end; phaseDuration=duration;
+  let bar=document.getElementById('timerBar'); bar.style.display='block';
+  phaseTimer=setInterval(()=>{
+    let left=Math.max(0, Math.ceil((phaseEndTime-Date.now())/1000));
+    let tl=document.getElementById('timeLeft'); if(tl) tl.innerText=left;
+    let vl=document.getElementById('voteTimeLeft'); if(vl) vl.innerText=left;
+    bar.style.width = (left/duration*100)+"%";
+    if(left<=0){ clearInterval(phaseTimer); bar.style.display='none'; if(isHost) onPhaseTimeout(phase); }
+  },500);
+}
+function onPhaseTimeout(phase){
+  if(phase==='mafia_kill'){
+    let candidates = alivePlayers().filter(p=>p.id!==mafiaId);
+    if(candidates.length){ let pick = candidates[Math.floor(Math.random()*candidates.length)]; doKillInternal(pick.id, pick.name); }
+  }
+  if(phase==='save_vote'){ doShowSaveResult(); }
+  if(phase==='mafia_vote'){ doShowMafiaResult(); }
+}
+function applyCardVisual(){
+  let c=document.getElementById('myCard');
+  if(!cardFlipped){ c.innerText="؟"; c.style.background="#fff"; c.style.color="#000"; document.getElementById('myRoleText').innerText=""; return; }
+  if(myRole==='mafia'){ c.innerText="😈 انت المافيا"; c.style.background="#ef4444"; c.style.color="#fff"; document.getElementById('myRoleText').innerText="لا تعلم أحد! اختر واحد تقتله"; }
+  else { c.innerText="🙂 انت مو مافيا"; c.style.background="#22c55e"; c.style.color="#fff"; document.getElementById('myRoleText').innerText="حاول تعرف مين المافيا"; }
+}
+function startMafiaScreen(role, round, phase, alive, end, duration){
+  myRole=role; myRound=round; myPhase=phase; aliveMap=alive||aliveMap; hasVoted=false;
+  document.getElementById('roundNum').innerText=round;
+  applyCardVisual();
+  show('s-mafia'); renderMafia();
+  if(end) startPhaseTimer(end, duration||TIME_KILL, phase);
+}
+function flipCard(){
+  if(cardFlipped) return;
+  cardFlipped=true;
+  applyCardVisual();
+}
+function renderMafia(){
+  document.getElementById('roundNum').innerText=myRound;
+  let pt = myPhase==='mafia_kill' ? "المافيا يقتل" : myPhase==='save_vote' ? "الانقاذ" : myPhase==='mafia_vote' ? "التصويت: مين المافيا؟" : "";
+  document.getElementById('phaseText').innerText=pt;
+  let h=""; players.forEach(p=>{ let alive = aliveMap[p.id]!==false && !isOut(p.id); h+=`<div class="player ${alive?'':'out'}"><span>${p.name} ${p.id===myId?'(انت)':''}</span><span>${alive?'🟢 عايش':'💀 مات'}</span></div>`; });
+  document.getElementById('gamePlayers').innerHTML=h;
+  let action=document.getElementById('actionArea'); action.innerHTML="";
+  if(isOut(myId)){ action.innerHTML="<p>خسرت❌</p>"; return; }
+  if(myPhase==='mafia_kill' && myRole==='mafia'){
+    action.innerHTML="<p><b>اختر واحد تقتله</b></p>" + alivePlayers().filter(p=>p.id!==myId).map(p=>`<div class="vote-item" onclick="doKill('${p.id}','${p.name}')">قتل ${p.name} 🔪</div>`).join('');
+  }
+  if(myPhase==='mafia_kill' && myRole!=='mafia'){ action.innerHTML="<p>المافيا قاعد يقتل... انتظر⏳</p>"; }
+}
+function doKill(vId,vName){
+  if(!confirm("تقتل "+vName+"؟ محد بيعرف غيرك")) return;
+  if(isHost){ doKillInternal(vId,vName); }
+  else sendToHost({type:'mafiaKill', victimId:vId, victimName:vName});
+}
+function doKillInternal(vId,vName){
+  victimId=vId; victimName=vName; myPhase='save_vote'; saveVotes={};
+  setTopInfo("مين تنقذه من المافيا", "dead");
+  let end = Date.now()+TIME_SAVE*1000;
+  broadcast({type:'mafiaKilled', phase:'save_vote', alive:aliveMap, round:myRound, endTime:end, duration:TIME_SAVE, victimIdForMafia:vId, victimNameForMafia:vName});
+  if(myRole==='mafia') setTopInfo("لقد قتلت "+vName, "dead");
+  startSaveVote(end, TIME_SAVE);
+}
+function startSaveVote(end, duration){ saveVotes={}; hasVoted=false; showSaveVoteScreen(end, duration); }
+function showSaveVoteScreen(end, duration){
+  hasVoted=false;
+  document.getElementById('voteTitle').innerText="مين تنقذه من المافيا";
+  document.getElementById('voteStatus').innerText=""; document.getElementById('voteWait').style.display='none';
+  show('s-vote');
+  let list=document.getElementById('voteList'); list.innerHTML='';
+  alivePlayers().forEach(p=>{ let div=document.createElement('div'); div.className='vote-item'; div.innerText=p.name + (p.id===myId?' (انت)':''); div.onclick=()=>castVote(p.id, div, "save"); list.appendChild(div); });
+  if(isOut(myId)){ list.innerHTML='<p>خسرت❌</p>'; }
+  if(end) startPhaseTimer(end, duration||TIME_SAVE, 'save_vote');
+}
+function startMafiaVote(){
+  mafiaVotes={}; hasVoted=false;
+  let end = Date.now()+TIME_MAFIA_VOTE*1000;
+  if(isHost) broadcast({type:'gotoMafiaVote', endTime:end, duration:TIME_MAFIA_VOTE});
+  showMafiaVoteScreen(end, TIME_MAFIA_VOTE);
+}
+function showMafiaVoteScreen(end, duration){
+  hasVoted=false;
+  document.getElementById('voteTitle').innerText="مين تتوقع المافيا؟";
+  document.getElementById('voteStatus').innerText=""; document.getElementById('voteWait').style.display='none';
+  show('s-vote');
+  let list=document.getElementById('voteList'); list.innerHTML='';
+  alivePlayers().forEach(p=>{ let div=document.createElement('div'); div.className='vote-item'; div.innerText=p.name + (p.id===myId?' (انت)':''); div.onclick=()=>castVote(p.id, div, "mafia"); list.appendChild(div); });
+  if(isOut(myId)){ list.innerHTML='<p>خسرت❌</p>'; }
+  if(end) startPhaseTimer(end, duration||TIME_MAFIA_VOTE, 'mafia_vote');
+}
+function castVote(t, el, mode){
+  if(hasVoted) return; if(isOut(myId)) return;
+  hasVoted=true; document.querySelectorAll('.vote-item').forEach(e=>e.classList.remove('selected')); if(el) el.classList.add('selected');
+  document.getElementById('voteStatus').innerText="✅ تم التصويت"; document.getElementById('voteWait').style.display='block';
+  if(isHost){ if(mode==="save"){ saveVotes[myId]=t; checkSaveVotes(); } else { mafiaVotes[myId]=t; checkMafiaVotes(); } }
+  else sendToHost({type: mode==="save" ? 'saveVote' : 'mafiaVote', voterId:myId, targetId:t});
+}
+function checkSaveVotes(){ if(Object.keys(saveVotes).length>=alivePlayers().length){ if(phaseTimer) clearInterval(phaseTimer); doShowSaveResult(); } }
+function checkMafiaVotes(){ if(Object.keys(mafiaVotes).length>=alivePlayers().length){ if(phaseTimer) clearInterval(phaseTimer); doShowMafiaResult(); } }
+function doShowSaveResult(){
+  if(myPhase!=='save_vote') return;
+  let counts={}; Object.values(saveVotes).forEach(v=>{ counts[v]=(counts[v]||0)+1; });
+  let maxId = Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+  let savedName = players.find(p=>p.id===maxId)?.name || "";
+  let saved = (maxId===victimId);
+  let newRound = myRound===1 ? 2 : myRound; let newPhase = myRound===1 ? 'mafia_kill' : 'mafia_vote';
+  let logText = saved ? `✅ تم انقاذ ${victimName}! عاش! 🟢` : `💀 ${victimName} مات! انقذتوا ${savedName} بس ما كان هو المقتول`;
+  if(!saved){ if(!eliminatedIds.includes(victimId)) eliminatedIds.push(victimId); aliveMap[victimId]=false; }
+  myRound=newRound; myPhase=newPhase; saveVotes={};
+  broadcast({type:'saveResult', saved, victimId, victimName, savedName, alive:aliveMap, eliminated:eliminatedIds, round:newRound, phase:newPhase, log:logText});
+  applySaveResult(saved, victimId, victimName, savedName, aliveMap, eliminatedIds, newRound, newPhase, logText);
+}
+function applySaveResult(saved, vId, vName, savedName, alive, elim, round, phase, log){
+  aliveMap=alive; eliminatedIds=elim; myRound=round; myPhase=phase; hasVoted=false;
+  if(saved) setTopInfo(log, "saved"); else setTopInfo(log, "dead");
+  if(phase==='mafia_kill'){
+    let end = Date.now()+TIME_KILL*1000;
+    startMafiaScreen(currentRoles[myId], round, phase, alive, end, TIME_KILL);
+    if(isHost) broadcast({type:'nextPhase', phase:'mafia_kill', round, alive, eliminated:elim, endTime:end, duration:TIME_KILL, log});
+    setTopInfo(log, saved?"saved":"dead");
+  } else if(phase==='mafia_vote'){
+    startMafiaVote();
+    setTopInfo(log, "mafia");
+  }
+}
+function doShowMafiaResult(){
+  if(myPhase!=='mafia_vote') return;
+  let counts={}; Object.values(mafiaVotes).forEach(v=>{ counts[v]=(counts[v]||0)+1; });
+  let top = Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+  let tp = players.find(p=>p.id===top);
+  lastVotedId=top; lastVotedName=tp?tp.name:""; lastWasMafia=(currentRoles[top]==='mafia');
+  broadcast({type:'mafiaVoteResult', topId:top, topName:lastVotedName, wasMafia:lastWasMafia, counts});
+  showResultScreen(top, lastVotedName);
+}
+function showResultScreen(topId, topName){
+  show('s-result');
+  let curtain=document.getElementById('blackCurtain'); curtain.classList.remove('open');
+  let nameEl=document.getElementById('resultName'); let subEl=document.getElementById('resultSub');
+  nameEl.classList.remove('show'); subEl.classList.remove('show');
+  nameEl.innerText="...";
+  setTopInfo(`🗳️ ${topName} طلع من اللعبة`, "dead");
+  setTimeout(()=>{ curtain.classList.add('open'); },400);
+  setTimeout(()=>{
+    nameEl.innerText=topName; nameEl.style.color='#ff1744'; nameEl.classList.add('show');
+    subEl.innerText='طلع من اللعبة'; subEl.style.color='#fff'; subEl.classList.add('show');
+  },1800);
+  setTimeout(()=>{ if(isHost) doNextRoundAuto(); }, TIME_RESULT*1000);
+}
+function doNextRoundAuto(){
+  let outId = lastVotedId;
+  if(!eliminatedIds.includes(outId)) eliminatedIds.push(outId);
+  aliveMap[outId]=false;
+  if(lastWasMafia){
+    let remaining = alivePlayers();
+    if(remaining.length>2){ let newM = remaining[Math.floor(Math.random()*remaining.length)]; currentRoles[newM.id]='mafia'; currentRoles[outId]='citizen'; mafiaId=newM.id; }
+  }
+  if(alivePlayers().length<=2){
+    broadcast({type:'goFinal', eliminated:eliminatedIds, alive:aliveMap});
+    showFinalScreen(eliminatedIds, aliveMap);
+    return;
+  }
+  myRound++; myPhase='mafia_kill'; mafiaVotes={}; hasVoted=false;
+  let end = Date.now()+TIME_KILL*1000;
+  broadcast({type:'nextRound', round:myRound, phase:'mafia_kill', alive:aliveMap, eliminated:eliminatedIds, roles:currentRoles, mafiaId, endTime:end, duration:TIME_KILL});
+  applyNextRound(myRound, 'mafia_kill', aliveMap, eliminatedIds, currentRoles, mafiaId, end, TIME_KILL);
+}
+function applyNextRound(round, phase, alive, elim, roles, mId, end, duration){
+  myRound=round; myPhase=phase; aliveMap=alive; eliminatedIds=elim; currentRoles=roles; mafiaId=mId; hasVoted=false;
+  setTopInfo(`الراوند ${round} بدأ!`, "mafia");
+  startMafiaScreen(currentRoles[myId], round, phase, alive, end, duration);
+}
+function showFinalScreen(elim, alive){
+  eliminatedIds=elim; aliveMap=alive;
+  show('s-final');
+  setTopInfo(`🏆 النهائي! بقي ${alivePlayers().length} فقط`, "saved");
+  let fp=document.getElementById('finalPlayers');
+  fp.innerHTML = alivePlayers().map(p=>`<div class="player"><span>${p.name}</span><span>🔥</span></div>`).join('');
+  let winners = alivePlayers().map(p=>p.name).join(' و ');
+  document.getElementById('finalText').innerText = 'الفايزين: '+winners+' 🏆';
+}
+function requestNewGame(){
+  if(isHost){ doRestartGame(); } else { sendToHost({type:'restartGame'}); }
+}
+function doRestartGame(){
+  if(phaseTimer) clearInterval(phaseTimer);
+  players.forEach(p=>{ p.ready=false; });
+  myReady=false; eliminatedIds=[]; aliveMap={}; saveVotes={}; mafiaVotes={}; myPhase="waiting"; myRound=1; cardFlipped=false;
+  document.getElementById('readyBtn').innerText="أنا جاهز ✅";
+  document.getElementById('topInfo').style.display='none';
+  document.getElementById('timerBar').style.display='none';
+  broadcast({type:'restartGame', players});
+  show('s-lobby'); renderPlayers();
+}
+function applyRestartGame(pl){
+  if(pl) players=pl;
+  if(phaseTimer) clearInterval(phaseTimer);
+  myReady=false; eliminatedIds=[]; aliveMap={}; saveVotes={}; mafiaVotes={}; myPhase="waiting"; myRound=1; cardFlipped=false;
+  document.getElementById('readyBtn').innerText="أنا جاهز ✅";
+  document.getElementById('topInfo').style.display='none';
+  document.getElementById('timerBar').style.display='none';
+  show('s-lobby'); renderPlayers();
+}
+function handleHostData(c,data){
+ if(data.type==='join'){if(players.length>=16){c.send({type:'full'});return;}players.push({id:data.id,name:data.name,ready:false});broadcast({type:'players',players});renderPlayers();}
+ if(data.type==='ready'){let p=players.find(x=>x.id===data.id);if(p)p.ready=data.ready;broadcast({type:'players',players});renderPlayers();}
+ if(data.type==='gameStartRequest'){doGameStartByNetworkHost();}
+ if(data.type==='mafiaKill'){doKillInternal(data.victimId, data.victimName);}
+ if(data.type==='saveVote'){saveVotes[data.voterId]=data.targetId; checkSaveVotes();}
+ if(data.type==='mafiaVote'){mafiaVotes[data.voterId]=data.targetId; checkMafiaVotes();}
+ if(data.type==='restartGame'){doRestartGame();}
+}
+function handleClientData(data){
+ if(data.type==='players'){players=data.players;renderPlayers();}
+ if(data.type==='full'){alert("الغرفة مليانة");location.reload();}
+ if(data.type==='mafiaStart'){currentRoles=data.roles;mafiaId=data.mafiaId;eliminatedIds=data.eliminated;cardFlipped=false;startMafiaScreen(data.roles[myId],data.round,data.phase,data.alive,data.endTime,data.duration);setTopInfo("🕵️ بدأت اللعبة!", "mafia");}
+ if(data.type==='mafiaKilled'){myPhase=data.phase;myRound=data.round;hasVoted=false;if(data.victimIdForMafia && myRole==='mafia'){victimId=data.victimIdForMafia;victimName=data.victimNameForMafia;setTopInfo("لقد قتلت "+victimName,"dead");} else {setTopInfo("مين تنقذه من المافيا","dead");} startSaveVote(data.endTime, data.duration);}
+ if(data.type==='saveResult'){applySaveResult(data.saved, data.victimId, data.victimName, data.savedName, data.alive, data.eliminated, data.round, data.phase, data.log); if(data.victimId){victimId=data.victimId;victimName=data.victimName;}}
+ if(data.type==='gotoMafiaVote'){showMafiaVoteScreen(data.endTime, data.duration);}
+ if(data.type==='mafiaVoteResult'){lastVotedId=data.topId;lastVotedName=data.topName;lastWasMafia=data.wasMafia;showResultScreen(data.topId, data.topName);}
+ if(data.type==='nextRound'){applyNextRound(data.round, data.phase, data.alive, data.eliminated, data.roles, data.mafiaId, data.endTime, data.duration);}
+ if(data.type==='nextPhase'){myRound=data.round;myPhase=data.phase;aliveMap=data.alive;eliminatedIds=data.eliminated;setTopInfo(data.log, "dead");startMafiaScreen(currentRoles[myId], data.round, data.phase, data.alive, data.endTime, data.duration);}
+ if(data.type==='goFinal'){showFinalScreen(data.eliminated, data.alive);}
+ if(data.type==='restartGame'){applyRestartGame(data.players);}
+}
+</script>
+</body>
+<style>html{
+ color:darkviolet;
+ font-size:25px;
+ font-weight:600;
+}
+</style><script>/*Here write your javascript code*/</script></html>
